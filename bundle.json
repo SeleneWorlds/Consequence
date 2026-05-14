@@ -1,0 +1,8 @@
+{
+  "name": "chatty-npcs",
+  "description": "Data-driven chat event engine for NPC interactions with extensible conditions and actions.",
+  "dependencies": [],
+  "entrypoints": [
+    "server/lua/init.lua"
+  ]
+}

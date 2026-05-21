@@ -1,6 +1,6 @@
-local Handlers = require("chatty-npcs.server.lua.lib.handlers")
-local ConditionBuiltins = require("chatty-npcs.server.lua.builtins.conditions")
-local ActionBuiltins = require("chatty-npcs.server.lua.builtins.actions")
+local Handlers = require("consequence.server.lua.lib.handlers")
+local ConditionBuiltins = require("consequence.server.lua.builtins.conditions")
+local ActionBuiltins = require("consequence.server.lua.builtins.actions")
 
 local Bootstrap = {
     Initialized = false

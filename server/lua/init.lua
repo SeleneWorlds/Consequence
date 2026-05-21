@@ -1,1 +1,1 @@
-return require("chatty-npcs.server.lua.chatty_npcs")
+return require("consequence.server.lua.consequence")

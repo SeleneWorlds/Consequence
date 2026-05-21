@@ -1,26 +1,22 @@
-# chatty-npcs
+# consequence
 
-`chatty-npcs` is a Selene Lua bundle that exposes a data-driven event engine for
-simple NPC interactions.
-
-This bundle does not spawn NPCs or intercept chat on its own. Consumer bundles
-call `fireTrigger(...)` and provide a plain Lua context table plus optional
-payload data.
+`consequence` is a Selene Lua bundle that exposes a data-driven event engine for
+trigger-based interactions.
 
 ## Public API
 
 ```lua
-local ChattyNpcs = require("chatty-npcs.server.lua.chatty_npcs")
+local Consequence = require("consequence.server.lua.consequence")
 
-ChattyNpcs.registerConditionType("my_bundle:custom_condition", function(spec, context, payload)
+Consequence.registerConditionType("my_bundle:custom_condition", function(spec, context, payload)
     return true
 end)
 
-ChattyNpcs.registerActionType("my_bundle:custom_action", function(spec, context, payload)
+Consequence.registerActionType("my_bundle:custom_action", function(spec, context, payload)
     context.lastAction = spec.name
 end)
 
-local result = ChattyNpcs.fireTrigger("thirdparty:receive_text", {
+local result = Consequence.fireTrigger("thirdparty:receive_text", {
     npc = npc,
     player = player
 }, {
@@ -30,7 +26,7 @@ local result = ChattyNpcs.fireTrigger("thirdparty:receive_text", {
 
 ## Registry Data
 
-Interaction definitions live under `server/data/chatty_npcs/interactions`.
+Interaction definitions live under `server/data/consequence/interactions`.
 Each JSON represents one NPC's full interaction set. Define distinct
 event-to-action combinations in an `interactions` array. `trigger` is only the
 event identifier fired through `fireTrigger(...)`; `conditions` decide whether
@@ -46,19 +42,19 @@ Example:
       "trigger": "thirdparty:receive_text",
       "conditions": [
         {
-          "type": "chatty_npcs:payload_field_match",
+          "type": "consequence:payload_field_match",
           "path": "message",
           "equals": "hello"
         },
         {
-          "type": "chatty_npcs:context_field_match",
+          "type": "consequence:context_field_match",
           "path": "player.role",
           "equals": "traveler"
         }
       ],
       "actions": [
         {
-          "type": "chatty_npcs:call_context",
+          "type": "consequence:call_context",
           "path": "npc",
           "method": "speak",
           "args": ["Hello there."]
@@ -66,10 +62,10 @@ Example:
       ]
     },
     {
-      "trigger": "chatty_npcs:use_npc",
+      "trigger": "consequence:use_npc",
       "actions": [
         {
-          "type": "chatty_npcs:call_context",
+          "type": "consequence:call_context",
           "path": "npc",
           "method": "speak",
           "args": ["Need something?"]
@@ -83,14 +79,14 @@ Example:
 ## Built-in Types
 
 Conditions:
-- `chatty_npcs:all`
-- `chatty_npcs:any`
-- `chatty_npcs:not`
-- `chatty_npcs:context_field_match`
-- `chatty_npcs:payload_field_match`
-- `chatty_npcs:script`
+- `consequence:all`
+- `consequence:any`
+- `consequence:not`
+- `consequence:context_field_match`
+- `consequence:payload_field_match`
+- `consequence:script`
 
 Actions:
-- `chatty_npcs:call_context`
-- `chatty_npcs:call_payload`
-- `chatty_npcs:script`
+- `consequence:call_context`
+- `consequence:call_payload`
+- `consequence:script`

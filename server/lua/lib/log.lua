@@ -1,7 +1,7 @@
 local Log = {}
 
 local function formatPrefix(level)
-    return "[chatty-npcs][" .. level .. "]"
+    return "[consequence][" .. level .. "]"
 end
 
 function Log.info(message)

@@ -1,5 +1,5 @@
-local ModuleLoader = require("chatty-npcs.server.lua.lib.module_loader")
-local Utils = require("chatty-npcs.server.lua.lib.utils")
+local ModuleLoader = require("consequence.server.lua.lib.module_loader")
+local Utils = require("consequence.server.lua.lib.utils")
 
 local Actions = {}
 
@@ -37,7 +37,7 @@ local function callMethod(target, methodName, args)
 end
 
 function Actions.register(Handlers)
-    Handlers.registerActionType("chatty_npcs:call_context", function(spec, context, payload)
+    Handlers.registerActionType("consequence:call_context", function(spec, context, payload)
         return callMethod(
             Utils.getPath(context, spec.path),
             spec.method,
@@ -45,7 +45,7 @@ function Actions.register(Handlers)
         )
     end)
 
-    Handlers.registerActionType("chatty_npcs:call_payload", function(spec, context, payload)
+    Handlers.registerActionType("consequence:call_payload", function(spec, context, payload)
         return callMethod(
             Utils.getPath(payload, spec.path),
             spec.method,
@@ -53,7 +53,7 @@ function Actions.register(Handlers)
         )
     end)
 
-    Handlers.registerActionType("chatty_npcs:script", function(spec, context, payload)
+    Handlers.registerActionType("consequence:script", function(spec, context, payload)
         local fn = ModuleLoader.resolveFunction(spec, "run")
         return fn(spec, context, payload)
     end)

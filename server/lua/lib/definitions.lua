@@ -13,7 +13,7 @@ function Definitions.loadAll()
         return Definitions.Cached
     end
 
-    local allEntries = Registries.findAll("chatty_npcs:interactions") or {}
+    local allEntries = Registries.findAll("consequence:interactions") or {}
     local entries = {}
     for _, entry in pairs(allEntries) do
         table.insert(entries, entry)

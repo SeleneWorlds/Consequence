@@ -1,5 +1,5 @@
-local ModuleLoader = require("chatty-npcs.server.lua.lib.module_loader")
-local Utils = require("chatty-npcs.server.lua.lib.utils")
+local ModuleLoader = require("consequence.server.lua.lib.module_loader")
+local Utils = require("consequence.server.lua.lib.utils")
 
 local Conditions = {}
 
@@ -46,7 +46,7 @@ local function matchField(spec, root, context, payload, defaultPath)
 end
 
 function Conditions.register(Handlers)
-    Handlers.registerConditionType("chatty_npcs:all", function(spec, context, payload)
+    Handlers.registerConditionType("consequence:all", function(spec, context, payload)
         for _, nestedCondition in ipairs(spec.conditions or {}) do
             local handler = Handlers.getConditionType(nestedCondition.type)
             if not handler or not handler(nestedCondition, context, payload) then
@@ -56,7 +56,7 @@ function Conditions.register(Handlers)
         return true
     end)
 
-    Handlers.registerConditionType("chatty_npcs:any", function(spec, context, payload)
+    Handlers.registerConditionType("consequence:any", function(spec, context, payload)
         local sawCondition = false
         for _, nestedCondition in ipairs(spec.conditions or {}) do
             sawCondition = true
@@ -68,7 +68,7 @@ function Conditions.register(Handlers)
         return not sawCondition
     end)
 
-    Handlers.registerConditionType("chatty_npcs:not", function(spec, context, payload)
+    Handlers.registerConditionType("consequence:not", function(spec, context, payload)
         local nestedCondition = spec.condition
         if type(nestedCondition) ~= "table" then
             return true
@@ -77,15 +77,15 @@ function Conditions.register(Handlers)
         return not (handler and handler(nestedCondition, context, payload))
     end)
 
-    Handlers.registerConditionType("chatty_npcs:context_field_match", function(spec, context, payload)
+    Handlers.registerConditionType("consequence:context_field_match", function(spec, context, payload)
         return matchField(spec, context or {}, context, payload, nil)
     end)
 
-    Handlers.registerConditionType("chatty_npcs:payload_field_match", function(spec, context, payload)
+    Handlers.registerConditionType("consequence:payload_field_match", function(spec, context, payload)
         return matchField(spec, payload or {}, context, payload, "message")
     end)
 
-    Handlers.registerConditionType("chatty_npcs:script", function(spec, context, payload)
+    Handlers.registerConditionType("consequence:script", function(spec, context, payload)
         local fn = ModuleLoader.resolveFunction(spec, "evaluate")
         return fn(spec, context, payload)
     end)

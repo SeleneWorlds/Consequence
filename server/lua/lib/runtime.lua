@@ -1,7 +1,7 @@
-local Bootstrap = require("chatty-npcs.server.lua.lib.bootstrap")
-local Definitions = require("chatty-npcs.server.lua.lib.definitions")
-local Handlers = require("chatty-npcs.server.lua.lib.handlers")
-local Log = require("chatty-npcs.server.lua.lib.log")
+local Bootstrap = require("consequence.server.lua.lib.bootstrap")
+local Definitions = require("consequence.server.lua.lib.definitions")
+local Handlers = require("consequence.server.lua.lib.handlers")
+local Log = require("consequence.server.lua.lib.log")
 
 local Runtime = {}
 
@@ -27,9 +27,9 @@ local function getTriggerId(spec)
         return spec
     end
     if type(spec) ~= "table" then
-        return "chatty_npcs:any"
+        return "consequence:any"
     end
-    return spec.id or spec.type or "chatty_npcs:any"
+    return spec.id or spec.type or "consequence:any"
 end
 
 local function runProtected(label, fn, ...)

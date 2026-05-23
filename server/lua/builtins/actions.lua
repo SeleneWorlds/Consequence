@@ -20,15 +20,15 @@ local function isArray(value)
     return count == #value
 end
 
-local function resolveValue(value, context, payload, Handlers)
+local function resolveValue(value, context, payload, Handlers, options)
     if type(value) ~= "table" then
         return value
     end
 
     local effectType = value.type
-    local handler = type(effectType) == "string" and Handlers.getEffectType(effectType) or nil
+    local handler = type(effectType) == "string" and Handlers.getEffectType(effectType, options and options.defaultNamespaces) or nil
     if handler ~= nil then
-        return handler(value, context, payload)
+        return handler(value, context, payload, nil, options)
     end
 
     if not isArray(value) then
@@ -37,25 +37,25 @@ local function resolveValue(value, context, payload, Handlers)
 
     local resolved = {}
     for index, entry in ipairs(value) do
-        resolved[index] = resolveValue(entry, context, payload, Handlers)
+        resolved[index] = resolveValue(entry, context, payload, Handlers, options)
     end
     return resolved
 end
 
-local function resolveArgs(spec, context, payload, Handlers)
+local function resolveArgs(spec, context, payload, Handlers, options)
     if type(spec.args) == "table" then
-        return resolveValue(spec.args, context, payload, Handlers)
+        return resolveValue(spec.args, context, payload, Handlers, options)
     end
     if type(spec.argsFromContext) == "string" then
         local value = Utils.getPath(context, spec.argsFromContext)
         if type(value) == "table" then
-            return resolveValue(value, context, payload, Handlers)
+            return resolveValue(value, context, payload, Handlers, options)
         end
     end
     if type(spec.argsFromPayload) == "string" then
         local value = Utils.getPath(payload, spec.argsFromPayload)
         if type(value) == "table" then
-            return resolveValue(value, context, payload, Handlers)
+            return resolveValue(value, context, payload, Handlers, options)
         end
     end
     return {}
@@ -78,19 +78,19 @@ end
 function Actions.register(Handlers)
     ParserRegistry.registerPositionalArguments("consequence:pick", { "...options" })
 
-    Handlers.registerEffectType("consequence:call_context", function(spec, context, payload)
+    Handlers.registerEffectType("consequence:call_context", function(spec, context, payload, _, options)
         return callMethod(
             Utils.getPath(context, spec.path),
             spec.method,
-            resolveArgs(spec, context, payload, Handlers)
+            resolveArgs(spec, context, payload, Handlers, options)
         )
     end)
 
-    Handlers.registerEffectType("consequence:call_payload", function(spec, context, payload)
+    Handlers.registerEffectType("consequence:call_payload", function(spec, context, payload, _, options)
         return callMethod(
             Utils.getPath(payload, spec.path),
             spec.method,
-            resolveArgs(spec, context, payload, Handlers)
+            resolveArgs(spec, context, payload, Handlers, options)
         )
     end)
 

@@ -35,10 +35,39 @@ local function parsePositionalArgumentName(value, index, total)
     }
 end
 
+local function copyDefaultNamespaces(defaultNamespaces)
+    if defaultNamespaces == nil then
+        return nil
+    end
+    if type(defaultNamespaces) ~= "table" then
+        fail("Default namespaces must be provided as an array.")
+    end
+
+    local copied = {}
+    for index, value in ipairs(defaultNamespaces) do
+        validateIdentifier(value, "Default namespace")
+        copied[index] = value
+    end
+    return copied
+end
+
+local function resolveCandidates(symbol, defaultNamespaces)
+    local firstColon = symbol:find(":", 1, true)
+    if firstColon ~= nil then
+        return { symbol }
+    end
+
+    local candidates = { symbol }
+    for _, namespace in ipairs(copyDefaultNamespaces(defaultNamespaces) or {}) do
+        candidates[#candidates + 1] = namespace .. ":" .. symbol
+    end
+    return candidates
+end
+
 function Registry.normalizeSymbolParts(namespace, name)
     validateIdentifier(name, "Symbol name")
     if namespace == nil or namespace == "" then
-        return "consequence:" .. name
+        return name
     end
     validateIdentifier(namespace, "Symbol namespace")
     return namespace .. ":" .. name
@@ -97,8 +126,15 @@ function Registry.registerPositionalArguments(symbol, names)
     Registry.positionalArguments[normalized] = copyNames(names)
 end
 
-function Registry.getPositionalArguments(symbol)
-    local names = Registry.positionalArguments[symbol]
+function Registry.getPositionalArguments(symbol, defaultNamespaces)
+    local names = nil
+    for _, candidate in ipairs(resolveCandidates(symbol, defaultNamespaces)) do
+        names = Registry.positionalArguments[candidate]
+        if names ~= nil then
+            break
+        end
+    end
+
     if names == nil then
         return nil
     end
@@ -116,5 +152,8 @@ end
 function Registry.clear()
     Registry.positionalArguments = {}
 end
+
+Registry.copyDefaultNamespaces = copyDefaultNamespaces
+Registry.resolveCandidates = resolveCandidates
 
 return Registry

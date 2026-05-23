@@ -5,6 +5,10 @@ local Log = require("consequence.server.lua.lib.log")
 
 local Runtime = {}
 
+local DEFAULT_RUNTIME_OPTIONS = {
+    defaultNamespaces = { "consequence" }
+}
+
 local function getField(entry, fieldName)
     if type(entry) ~= "table" then
         return nil
@@ -20,6 +24,32 @@ local function getSpecType(spec, fallbackType)
         return fallbackType
     end
     return spec.type or fallbackType
+end
+
+local function normalizeRuntimeOptions(options)
+    if options == nil then
+        options = {}
+    elseif type(options) ~= "table" then
+        error("Runtime options must be a table.", 0)
+    end
+
+    local normalized = {}
+    local defaultNamespaces = options.defaultNamespaces
+    if defaultNamespaces == nil then
+        defaultNamespaces = DEFAULT_RUNTIME_OPTIONS.defaultNamespaces
+    elseif type(defaultNamespaces) ~= "table" then
+        error("Runtime option 'defaultNamespaces' must be an array.", 0)
+    end
+
+    normalized.defaultNamespaces = {}
+    for index, namespace in ipairs(defaultNamespaces) do
+        if type(namespace) ~= "string" or namespace == "" then
+            error("Runtime default namespaces must contain non-empty strings.", 0)
+        end
+        normalized.defaultNamespaces[index] = namespace
+    end
+
+    return normalized
 end
 
 local function getTriggerId(spec)
@@ -48,9 +78,10 @@ local function runProtected(label, fn, ...)
     return true, resultOrError
 end
 
-function Runtime.runEffect(spec, context, payload, phase)
+function Runtime.runEffect(spec, context, payload, phase, options)
+    local runtimeOptions = normalizeRuntimeOptions(options)
     local effectType = getSpecType(spec)
-    local handler = Handlers.getEffectType(effectType)
+    local handler, resolvedEffectType = Handlers.getEffectType(effectType, runtimeOptions.defaultNamespaces)
     if not handler then
         Log.warn("Unknown effect type '" .. tostring(effectType) .. "'.")
         return false
@@ -62,12 +93,14 @@ function Runtime.runEffect(spec, context, payload, phase)
         spec,
         context,
         payload,
-        phase
+        phase,
+        runtimeOptions,
+        resolvedEffectType
     )
 end
 
-function Runtime.evaluateEffect(spec, context, payload, phase)
-    local ok, result = Runtime.runEffect(spec, context, payload, phase or "condition")
+function Runtime.evaluateEffect(spec, context, payload, phase, options)
+    local ok, result = Runtime.runEffect(spec, context, payload, phase or "condition", options)
     return ok and result == true
 end
 
@@ -79,7 +112,7 @@ local function getActionEffects(interaction)
     return getField(interaction, "actions") or {}
 end
 
-local function evaluateInteraction(definition, interaction, triggerId, payload, context)
+local function evaluateInteraction(definition, interaction, triggerId, payload, context, options)
     local triggerSpec = getField(interaction, "trigger")
     if getTriggerId(triggerSpec) ~= triggerId then
         return {
@@ -91,7 +124,7 @@ local function evaluateInteraction(definition, interaction, triggerId, payload, 
     end
 
     for _, effect in ipairs(getConditionEffects(interaction)) do
-        if not Runtime.evaluateEffect(effect, context, payload, "condition") then
+        if not Runtime.evaluateEffect(effect, context, payload, "condition", options) then
             return {
                 definition = definition,
                 interaction = interaction,
@@ -103,7 +136,7 @@ local function evaluateInteraction(definition, interaction, triggerId, payload, 
 
     local effectsRun = 0
     for _, effect in ipairs(getActionEffects(interaction)) do
-        local ok = Runtime.runEffect(effect, context, payload, "action")
+        local ok = Runtime.runEffect(effect, context, payload, "action", options)
         if not ok then
             return {
                 definition = definition,
@@ -125,8 +158,9 @@ local function evaluateInteraction(definition, interaction, triggerId, payload, 
     }
 end
 
-function Runtime.fireDefinitions(definitions, triggerId, context, payload)
+function Runtime.fireDefinitions(definitions, triggerId, context, payload, options)
     Bootstrap.ensureInitialized()
+    local runtimeOptions = normalizeRuntimeOptions(options)
 
     local effectiveContext = context or {}
     local effectivePayload = payload or {}
@@ -139,7 +173,8 @@ function Runtime.fireDefinitions(definitions, triggerId, context, payload)
         interactionsChecked = 0,
         matchedDefinitions = 0,
         effectCount = 0,
-        results = {}
+        results = {},
+        defaultNamespaces = runtimeOptions.defaultNamespaces
     }
 
     for _, definition in ipairs(definitions or {}) do
@@ -151,7 +186,8 @@ function Runtime.fireDefinitions(definitions, triggerId, context, payload)
                 interaction,
                 triggerId,
                 effectivePayload,
-                effectiveContext
+                effectiveContext,
+                runtimeOptions
             )
             table.insert(summary.results, result)
             if result.matched then
@@ -165,8 +201,8 @@ function Runtime.fireDefinitions(definitions, triggerId, context, payload)
     return summary
 end
 
-function Runtime.fireTrigger(triggerId, context, payload)
-    return Runtime.fireDefinitions(Definitions.loadAll(), triggerId, context, payload)
+function Runtime.fireTrigger(triggerId, context, payload, options)
+    return Runtime.fireDefinitions(Definitions.loadAll(), triggerId, context, payload, options)
 end
 
 function Runtime.registerTriggerType(id, handler)

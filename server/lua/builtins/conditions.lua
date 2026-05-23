@@ -49,35 +49,35 @@ end
 function Conditions.register(Handlers)
     ParserRegistry.registerPositionalArguments("consequence:match", { "...patterns" })
 
-    Handlers.registerEffectType("consequence:all", function(spec, context, payload)
+    Handlers.registerEffectType("consequence:all", function(spec, context, payload, _, options)
         for _, nestedEffect in ipairs(spec.effects or {}) do
-            local handler = Handlers.getEffectType(nestedEffect.type)
-            if not handler or not handler(nestedEffect, context, payload) then
+            local handler = Handlers.getEffectType(nestedEffect.type, options and options.defaultNamespaces)
+            if not handler or not handler(nestedEffect, context, payload, nil, options) then
                 return false
             end
         end
         return true
     end)
 
-    Handlers.registerEffectType("consequence:any", function(spec, context, payload)
+    Handlers.registerEffectType("consequence:any", function(spec, context, payload, _, options)
         local sawEffect = false
         for _, nestedEffect in ipairs(spec.effects or {}) do
             sawEffect = true
-            local handler = Handlers.getEffectType(nestedEffect.type)
-            if handler and handler(nestedEffect, context, payload) then
+            local handler = Handlers.getEffectType(nestedEffect.type, options and options.defaultNamespaces)
+            if handler and handler(nestedEffect, context, payload, nil, options) then
                 return true
             end
         end
         return not sawEffect
     end)
 
-    Handlers.registerEffectType("consequence:not", function(spec, context, payload)
+    Handlers.registerEffectType("consequence:not", function(spec, context, payload, _, options)
         local nestedEffect = spec.effect
         if type(nestedEffect) ~= "table" then
             return true
         end
-        local handler = Handlers.getEffectType(nestedEffect.type)
-        return not (handler and handler(nestedEffect, context, payload))
+        local handler = Handlers.getEffectType(nestedEffect.type, options and options.defaultNamespaces)
+        return not (handler and handler(nestedEffect, context, payload, nil, options))
     end)
 
     Handlers.registerEffectType("consequence:context_field_match", function(spec, context, payload)

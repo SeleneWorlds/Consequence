@@ -100,7 +100,10 @@ local function parseSuccess(source, ...)
     for _, setup in ipairs({ ... }) do
         setup(Consequence)
     end
-    return Consequence.parseScript(source, { fileName = "success.csqn" })
+    return Consequence.parseScript(source, {
+        fileName = "success.csqn",
+        defaultNamespaces = { "consequence" }
+    })
 end
 
 local function parseFailure(source, ...)
@@ -126,12 +129,12 @@ local function testParsesSimpleInteraction()
 
     assertDeepEquals(result.interactions, {
         {
-            trigger = "consequence:greet",
+            trigger = "greet",
             conditions = {
-                { type = "consequence:match", patterns = { "hello" } }
+                { type = "match", patterns = { "hello" } }
             },
             actions = {
-                { type = "consequence:reply", text = "Hello" }
+                { type = "reply", text = "Hello" }
             }
         }
     }, "Simple interaction should lower to runtime-shaped tables.")
@@ -147,12 +150,12 @@ local function testParsesBuiltInMatchVarargs()
 
     assertDeepEquals(result.interactions, {
         {
-            trigger = "consequence:greet",
+            trigger = "greet",
             conditions = {
-                { type = "consequence:match", patterns = { "^hello", "world$" } }
+                { type = "match", patterns = { "^hello", "world$" } }
             },
             actions = {
-                { type = "consequence:reply", text = "Hello" }
+                { type = "reply", text = "Hello" }
             }
         }
     }, "Simple interaction should lower to runtime-shaped tables.")
@@ -168,13 +171,13 @@ local function testParsesBuiltInPickVarargs()
 
     assertDeepEquals(result.interactions, {
         {
-            trigger = "consequence:greet",
+            trigger = "greet",
             conditions = {},
             actions = {
                 {
-                    type = "consequence:reply",
+                    type = "reply",
                     text = {
-                        type = "consequence:pick",
+                        type = "pick",
                         options = { "Hello", "Hi" }
                     }
                 }
@@ -197,11 +200,11 @@ local function testSupportsNamespacesDefaultsAndNestedCalls()
     assertDeepEquals(result.interactions[1], {
         trigger = "foo:bar",
         conditions = {
-            { type = "consequence:localFlag" },
+            { type = "localFlag" },
             {
-                type = "consequence:check",
+                type = "check",
                 condition = {
-                    type = "consequence:i18n",
+                    type = "i18n",
                     german = "de",
                     english = "en"
                 }
@@ -212,7 +215,7 @@ local function testSupportsNamespacesDefaultsAndNestedCalls()
             {
                 type = "baz:qux",
                 trade = {
-                    type = "consequence:showTrades",
+                    type = "showTrades",
                     item = "ore"
                 }
             }
@@ -229,13 +232,13 @@ local function testAcceptsBareAndQualifiedRegistrations()
     )
 
     assertDeepEquals(result.interactions[1], {
-        trigger = "consequence:useNpc",
+        trigger = "useNpc",
         conditions = {
-            { type = "consequence:german" }
+            { type = "german" }
         },
         actions = {
             {
-                type = "consequence:i18n",
+                type = "i18n",
                 german = "Hallo",
                 english = "Hello"
             }
@@ -261,14 +264,14 @@ trigger(
     )
 
     assertDeepEquals(result.interactions[1], {
-        trigger = "consequence:trigger",
+        trigger = "trigger",
         conditions = {
-            { type = "consequence:flag" },
-            { type = "consequence:match", patterns = { "hello" } }
+            { type = "flag" },
+            { type = "match", patterns = { "hello" } }
         },
         actions = {
-            { type = "consequence:reply", text = "hi" },
-            { type = "consequence:otherAction" }
+            { type = "reply", text = "hi" },
+            { type = "otherAction" }
         }
     }, "Multiline calls and trailing commas should parse.")
 end
@@ -282,17 +285,17 @@ local function testSupportsVarargPositionalArguments()
     )
 
     assertDeepEquals(result.interactions[1], {
-        trigger = "consequence:greet",
+        trigger = "greet",
         conditions = {
-            { type = "consequence:flag" }
+            { type = "flag" }
         },
         actions = {
             {
-                type = "consequence:reply",
+                type = "reply",
                 text = "hello",
                 extras = {
                     "there",
-                    { type = "consequence:otherAction" }
+                    { type = "otherAction" }
                 }
             }
         }
@@ -303,7 +306,7 @@ local function testFailsOnMissingPositionalRegistration()
     local errorMessage = parseFailure([[greet(needs_registration("hello")) -> wave]])
     assertTrue(errorMessage:find("broken.csqn:1:7:", 1, true) ~= nil, errorMessage)
     assertTrue(
-        errorMessage:find("No positional argument registration for 'consequence:needs_registration'", 1, true) ~= nil,
+        errorMessage:find("No positional argument registration for 'needs_registration'", 1, true) ~= nil,
         errorMessage
     )
 end
@@ -317,7 +320,7 @@ local function testFailsOnTooManyPositionalArguments()
     )
     assertTrue(errorMessage:find("broken.csqn:1:10:", 1, true) ~= nil, errorMessage)
     assertTrue(
-        errorMessage:find("Too many positional arguments for 'consequence:reply'", 1, true) ~= nil,
+        errorMessage:find("Too many positional arguments for 'reply'", 1, true) ~= nil,
         errorMessage
     )
 end
@@ -445,19 +448,61 @@ local function testClearParserRegistrationsResetsState()
     )
     assertDeepEquals(withRegistration.interactions, {
         {
-            trigger = "consequence:greet",
+            trigger = "greet",
             conditions = {},
             actions = {
-                { type = "consequence:reply", text = "hello" }
+                { type = "reply", text = "hello" }
             }
         }
     })
 
     local errorMessage = parseFailure([[greet -> reply("hello")]])
     assertTrue(
-        errorMessage:find("No positional argument registration for 'consequence:reply'", 1, true) ~= nil,
+        errorMessage:find("No positional argument registration for 'reply'", 1, true) ~= nil,
         errorMessage
     )
+end
+
+local function testResolvesBareEffectsAgainstConfiguredDefaultNamespaces()
+    Consequence.clearParserRegistrations()
+
+    local captured = {}
+    Consequence.registerEffectType("alpha:reply", function(spec)
+        captured[#captured + 1] = "alpha:" .. tostring(spec.text)
+        return true
+    end)
+    Consequence.registerEffectType("beta:reply", function(spec)
+        captured[#captured + 1] = "beta:" .. tostring(spec.text)
+        return true
+    end)
+
+    local ok = Consequence.runEffect({ type = "reply", text = "hello" }, nil, nil, "action", {
+        defaultNamespaces = { "beta", "alpha" }
+    })
+
+    assertTrue(ok, "Bare effect should resolve using configured default namespaces.")
+    assertDeepEquals(captured, { "beta:hello" }, "Runtime should choose the first registered namespace match.")
+end
+
+local function testPrefersExactBareRegistrationOverDefaultNamespaceFallback()
+    Consequence.clearParserRegistrations()
+
+    local captured = {}
+    Consequence.registerEffectType("reply", function(spec)
+        captured[#captured + 1] = "bare:" .. tostring(spec.text)
+        return true
+    end)
+    Consequence.registerEffectType("beta:reply", function(spec)
+        captured[#captured + 1] = "beta:" .. tostring(spec.text)
+        return true
+    end)
+
+    local ok = Consequence.runEffect({ type = "reply", text = "hello" }, nil, nil, "action", {
+        defaultNamespaces = { "beta" }
+    })
+
+    assertTrue(ok, "Exact bare effect should resolve successfully.")
+    assertDeepEquals(captured, { "bare:hello" }, "Exact registrations should win before namespace fallback.")
 end
 
 local M = {}
@@ -478,6 +523,8 @@ function M.run()
     testBuiltInMatchConditionEvaluation()
     testBuiltInPickActionEvaluation()
     testNestedPickActionResolvesInsideArgs()
+    testResolvesBareEffectsAgainstConfiguredDefaultNamespaces()
+    testPrefersExactBareRegistrationOverDefaultNamespaceFallback()
 end
 
 return M

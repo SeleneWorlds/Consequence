@@ -21,8 +21,14 @@ local result = Consequence.fireTrigger("thirdparty:receive_text", {
     player = player
 }, {
     message = "hello"
+}, {
+    defaultNamespaces = { "my_bundle", "consequence" }
 })
 ```
+
+When an effect `type` is unqualified, runtime first checks the exact name, then
+tries each `defaultNamespaces` entry in order until a registered effect handler
+is found.
 
 ## Registry Data
 

@@ -15,7 +15,8 @@ function Parser.new(tokens, fileName)
     return setmetatable({
         tokens = tokens,
         index = 1,
-        fileName = fileName or "(script)"
+        fileName = fileName or "(script)",
+        defaultNamespaces = nil
     }, Parser)
 end
 
@@ -146,7 +147,7 @@ end
 function Parser:lowerCall(node)
     local symbolId = Registry.normalizeSymbolParts(node.callee.namespace, node.callee.name)
     local args = node.args or {}
-    local positionalNames = Registry.getPositionalArguments(symbolId)
+    local positionalNames = Registry.getPositionalArguments(symbolId, self.defaultNamespaces)
     local positionalCount = positionalNames ~= nil and #positionalNames or 0
     local varargEntry = positionalCount > 0 and positionalNames[positionalCount] or nil
     local hasVararg = varargEntry ~= nil and varargEntry.vararg == true
@@ -275,6 +276,9 @@ function Parser.parseScript(source, options)
 
     local tokens = Lexer.tokenize(source, fileName)
     local parser = Parser.new(tokens, fileName)
+    if options ~= nil then
+        parser.defaultNamespaces = Registry.copyDefaultNamespaces(options.defaultNamespaces)
+    end
     return parser:parseFile()
 end
 

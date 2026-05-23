@@ -158,6 +158,31 @@ local function testParsesBuiltInMatchVarargs()
     }, "Simple interaction should lower to runtime-shaped tables.")
 end
 
+local function testParsesBuiltInPickVarargs()
+    local result = parseSuccess(
+        [[greet -> reply(pick("Hello", "Hi"))]],
+        function(api)
+            api.registerPositionalArguments("reply", { "text" })
+        end
+    )
+
+    assertDeepEquals(result.interactions, {
+        {
+            trigger = "consequence:greet",
+            conditions = {},
+            actions = {
+                {
+                    type = "consequence:reply",
+                    text = {
+                        type = "consequence:pick",
+                        options = { "Hello", "Hi" }
+                    }
+                }
+            }
+        }
+    }, "Built-in pick action should lower varargs into options.")
+end
+
 local function testSupportsNamespacesDefaultsAndNestedCalls()
     local result = parseSuccess(
         [[foo:bar(localFlag, check(i18n("de", "en"))) -> "Hi", baz:qux(showTrades("ore"))]],
@@ -320,6 +345,54 @@ local function testBuiltInMatchConditionEvaluation()
     )
 end
 
+local function testBuiltInPickActionEvaluation()
+    local originalRandom = math.random
+    math.random = function(limit)
+        assertTrue(limit == 2, "pick should request a random index within the option count.")
+        return 2
+    end
+
+    local ok, result = Consequence.runAction({ type = "consequence:pick", options = { "one", "two" } }, nil, nil)
+    math.random = originalRandom
+
+    assertTrue(ok, "Built-in pick action should execute successfully.")
+    assertTrue(result == "two", "Built-in pick action should return the randomly selected option.")
+end
+
+local function testNestedPickActionResolvesInsideArgs()
+    local originalRandom = math.random
+    math.random = function(limit)
+        assertTrue(limit == 2, "Nested pick should request a random index within the option count.")
+        return 2
+    end
+
+    local captured = nil
+    local context = {
+        npc = {
+            speak = function(_, message)
+                captured = message
+            end
+        }
+    }
+
+    local ok = Consequence.runAction({
+        type = "consequence:call_context",
+        path = "npc",
+        method = "speak",
+        args = {
+            {
+                type = "consequence:pick",
+                options = { "Hello", "Hi" }
+            }
+        }
+    }, context, nil)
+
+    math.random = originalRandom
+
+    assertTrue(ok, "Nested pick action should resolve successfully inside call arguments.")
+    assertTrue(captured == "Hi", "Nested pick action should resolve to the selected argument value.")
+end
+
 local function testFailsOnSyntaxDiagnostics()
     local malformedNamespace = parseFailure([[foo: -> bar]])
     assertTrue(malformedNamespace:find("broken.csqn:1:6:", 1, true) ~= nil, malformedNamespace)
@@ -392,6 +465,7 @@ local M = {}
 function M.run()
     testParsesSimpleInteraction()
     testParsesBuiltInMatchVarargs()
+    testParsesBuiltInPickVarargs()
     testSupportsNamespacesDefaultsAndNestedCalls()
     testAcceptsBareAndQualifiedRegistrations()
     testSupportsMultilineAndTrailingCommas()
@@ -402,6 +476,8 @@ function M.run()
     testFailsOnNonTrailingVarargRegistration()
     testClearParserRegistrationsResetsState()
     testBuiltInMatchConditionEvaluation()
+    testBuiltInPickActionEvaluation()
+    testNestedPickActionResolvesInsideArgs()
 end
 
 return M

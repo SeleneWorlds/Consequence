@@ -93,4 +93,8 @@ In consequence scripts, use it as `match("pattern1", "pattern2")`.
 Actions:
 - `consequence:call_context`
 - `consequence:call_payload`
+- `consequence:pick`
 - `consequence:script`
+
+`consequence:pick` returns one of its arguments at random.
+In consequence scripts, use it as `pick("option1", "option2")`.

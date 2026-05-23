@@ -49,46 +49,46 @@ end
 function Conditions.register(Handlers)
     ParserRegistry.registerPositionalArguments("consequence:match", { "...patterns" })
 
-    Handlers.registerConditionType("consequence:all", function(spec, context, payload)
-        for _, nestedCondition in ipairs(spec.conditions or {}) do
-            local handler = Handlers.getConditionType(nestedCondition.type)
-            if not handler or not handler(nestedCondition, context, payload) then
+    Handlers.registerEffectType("consequence:all", function(spec, context, payload)
+        for _, nestedEffect in ipairs(spec.effects or {}) do
+            local handler = Handlers.getEffectType(nestedEffect.type)
+            if not handler or not handler(nestedEffect, context, payload) then
                 return false
             end
         end
         return true
     end)
 
-    Handlers.registerConditionType("consequence:any", function(spec, context, payload)
-        local sawCondition = false
-        for _, nestedCondition in ipairs(spec.conditions or {}) do
-            sawCondition = true
-            local handler = Handlers.getConditionType(nestedCondition.type)
-            if handler and handler(nestedCondition, context, payload) then
+    Handlers.registerEffectType("consequence:any", function(spec, context, payload)
+        local sawEffect = false
+        for _, nestedEffect in ipairs(spec.effects or {}) do
+            sawEffect = true
+            local handler = Handlers.getEffectType(nestedEffect.type)
+            if handler and handler(nestedEffect, context, payload) then
                 return true
             end
         end
-        return not sawCondition
+        return not sawEffect
     end)
 
-    Handlers.registerConditionType("consequence:not", function(spec, context, payload)
-        local nestedCondition = spec.condition
-        if type(nestedCondition) ~= "table" then
+    Handlers.registerEffectType("consequence:not", function(spec, context, payload)
+        local nestedEffect = spec.effect
+        if type(nestedEffect) ~= "table" then
             return true
         end
-        local handler = Handlers.getConditionType(nestedCondition.type)
-        return not (handler and handler(nestedCondition, context, payload))
+        local handler = Handlers.getEffectType(nestedEffect.type)
+        return not (handler and handler(nestedEffect, context, payload))
     end)
 
-    Handlers.registerConditionType("consequence:context_field_match", function(spec, context, payload)
+    Handlers.registerEffectType("consequence:context_field_match", function(spec, context, payload)
         return matchField(spec, context or {}, context, payload, nil)
     end)
 
-    Handlers.registerConditionType("consequence:payload_field_match", function(spec, context, payload)
+    Handlers.registerEffectType("consequence:payload_field_match", function(spec, context, payload)
         return matchField(spec, payload or {}, context, payload, "message")
     end)
 
-    Handlers.registerConditionType("consequence:match", function(spec, _, payload)
+    Handlers.registerEffectType("consequence:match", function(spec, _, payload)
         local actual = Utils.getPath(payload or {}, "message")
         if type(actual) ~= "string" then
             return false
@@ -108,8 +108,8 @@ function Conditions.register(Handlers)
         return false
     end)
 
-    Handlers.registerConditionType("consequence:script", function(spec, context, payload)
-        local fn = ModuleLoader.resolveFunction(spec, "evaluate")
+    Handlers.registerEffectType("consequence:script", function(spec, context, payload)
+        local fn = ModuleLoader.resolveEffectFunction(spec)
         return fn(spec, context, payload)
     end)
 end

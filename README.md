@@ -8,12 +8,12 @@ trigger-based interactions.
 ```lua
 local Consequence = require("consequence.server.lua.consequence")
 
-Consequence.registerConditionType("my_bundle:custom_condition", function(spec, context, payload)
+Consequence.registerEffectType("my_bundle:custom_check", function(spec, context, payload)
     return true
 end)
 
-Consequence.registerActionType("my_bundle:custom_action", function(spec, context, payload)
-    context.lastAction = spec.name
+Consequence.registerEffectType("my_bundle:custom_reply", function(spec, context, payload)
+    context.lastEffect = spec.name
 end)
 
 local result = Consequence.fireTrigger("thirdparty:receive_text", {
@@ -28,9 +28,10 @@ local result = Consequence.fireTrigger("thirdparty:receive_text", {
 
 Interaction definitions live under `server/data/consequence/interactions`.
 Each JSON represents one NPC's full interaction set. Define distinct
-event-to-action combinations in an `interactions` array. `trigger` is only the
-event identifier fired through `fireTrigger(...)`; `conditions` decide whether
-that interaction should handle the payload. Runtime stops after the first
+event-to-effect combinations in an `interactions` array. `trigger` is only the
+event identifier fired through `fireTrigger(...)`; `conditions` are effects that decide whether
+that interaction should handle the payload, and `actions` are effects that run after a match.
+Runtime stops after the first
 successful interaction for a payload.
 
 Example:
@@ -78,7 +79,7 @@ Example:
 
 ## Built-in Types
 
-Conditions:
+Effects commonly used in `conditions`:
 - `consequence:all`
 - `consequence:any`
 - `consequence:match`
@@ -90,7 +91,7 @@ Conditions:
 `consequence:match` matches `payload.message` against one or more Lua patterns.
 In consequence scripts, use it as `match("pattern1", "pattern2")`.
 
-Actions:
+Effects commonly used in `actions`:
 - `consequence:call_context`
 - `consequence:call_payload`
 - `consequence:pick`
@@ -98,3 +99,6 @@ Actions:
 
 `consequence:pick` returns one of its arguments at random.
 In consequence scripts, use it as `pick("option1", "option2")`.
+
+`consequence:script` is phase-agnostic. It loads the named module and uses the
+first available exported function in this order: `apply`, `evaluate`, `run`.

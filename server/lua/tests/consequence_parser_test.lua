@@ -324,21 +324,21 @@ end
 
 local function testBuiltInMatchConditionEvaluation()
     assertTrue(
-        Consequence.evaluateCondition({ type = "consequence:match", patterns = { "^hello", "world$" } }, nil, {
+        Consequence.evaluateEffect({ type = "consequence:match", patterns = { "^hello", "world$" } }, nil, {
             message = "hello world"
         }),
         "Built-in match condition should succeed when any pattern matches."
     )
 
     assertTrue(
-        not Consequence.evaluateCondition({ type = "consequence:match", patterns = { "^goodbye" } }, nil, {
+        not Consequence.evaluateEffect({ type = "consequence:match", patterns = { "^goodbye" } }, nil, {
             message = "hello world"
         }),
         "Built-in match condition should fail when no pattern matches."
     )
 
     assertTrue(
-        not Consequence.evaluateCondition({ type = "consequence:match", patterns = {} }, nil, {
+        not Consequence.evaluateEffect({ type = "consequence:match", patterns = {} }, nil, {
             message = "hello world"
         }),
         "Built-in match condition should fail when no patterns are provided."
@@ -352,7 +352,7 @@ local function testBuiltInPickActionEvaluation()
         return 2
     end
 
-    local ok, result = Consequence.runAction({ type = "consequence:pick", options = { "one", "two" } }, nil, nil)
+    local ok, result = Consequence.runEffect({ type = "consequence:pick", options = { "one", "two" } }, nil, nil)
     math.random = originalRandom
 
     assertTrue(ok, "Built-in pick action should execute successfully.")
@@ -375,7 +375,7 @@ local function testNestedPickActionResolvesInsideArgs()
         }
     }
 
-    local ok = Consequence.runAction({
+    local ok = Consequence.runEffect({
         type = "consequence:call_context",
         path = "npc",
         method = "speak",

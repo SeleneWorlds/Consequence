@@ -1,6 +1,6 @@
 {
   "name": "consequence",
-  "description": "Data-driven chat event engine for NPC interactions with extensible conditions and actions.",
+  "description": "Data-driven chat event engine for NPC interactions with extensible effects.",
   "dependencies": [],
   "entrypoints": [
     "server/lua/init.lua"

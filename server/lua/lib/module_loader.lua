@@ -33,4 +33,34 @@ function ModuleLoader.resolveFunction(spec, defaultFunctionName)
     return fn, moduleName
 end
 
+function ModuleLoader.resolveEffectFunction(spec)
+    local loaded, moduleName = ModuleLoader.load(spec)
+    if type(loaded) == "function" then
+        return loaded, moduleName
+    end
+
+    local explicitFunctionName = spec["function"] or spec.functionName
+    if explicitFunctionName ~= nil then
+        if type(explicitFunctionName) ~= "string" or explicitFunctionName == "" then
+            error("Missing function name for module '" .. moduleName .. "'.")
+        end
+        local explicitFn = loaded[explicitFunctionName]
+        if type(explicitFn) ~= "function" then
+            error("Module '" .. moduleName .. "' does not export function '" .. explicitFunctionName .. "'.")
+        end
+        return explicitFn, moduleName
+    end
+
+    for _, candidateName in ipairs({ "apply", "evaluate", "run" }) do
+        local candidate = loaded[candidateName]
+        if type(candidate) == "function" then
+            return candidate, moduleName
+        end
+    end
+
+    error(
+        "Module '" .. moduleName .. "' does not export an effect function. Tried 'apply', 'evaluate', and 'run'."
+    )
+end
+
 return ModuleLoader

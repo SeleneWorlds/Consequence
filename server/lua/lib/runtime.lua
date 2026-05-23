@@ -48,76 +48,72 @@ local function runProtected(label, fn, ...)
     return true, resultOrError
 end
 
-function Runtime.evaluateCondition(spec, context, payload)
-    local conditionType = getSpecType(spec)
-    local handler = Handlers.getConditionType(conditionType)
+function Runtime.runEffect(spec, context, payload, phase)
+    local effectType = getSpecType(spec)
+    local handler = Handlers.getEffectType(effectType)
     if not handler then
-        Log.warn("Unknown condition type '" .. tostring(conditionType) .. "'.")
-        return false
-    end
-
-    local ok, result = runProtected(
-        "Condition handler failed for type '" .. tostring(conditionType) .. "'.",
-        handler,
-        spec,
-        context,
-        payload
-    )
-    return ok and result == true
-end
-
-function Runtime.runAction(spec, context, payload)
-    local actionType = getSpecType(spec)
-    local handler = Handlers.getActionType(actionType)
-    if not handler then
-        Log.warn("Unknown action type '" .. tostring(actionType) .. "'.")
+        Log.warn("Unknown effect type '" .. tostring(effectType) .. "'.")
         return false
     end
 
     return runProtected(
-        "Action handler failed for type '" .. tostring(actionType) .. "'.",
+        "Effect handler failed for type '" .. tostring(effectType) .. "'.",
         handler,
         spec,
         context,
-        payload
+        payload,
+        phase
     )
 end
 
-local function evaluateInteraction(definition, interaction, label, triggerId, payload, context)
+function Runtime.evaluateEffect(spec, context, payload, phase)
+    local ok, result = Runtime.runEffect(spec, context, payload, phase or "condition")
+    return ok and result == true
+end
+
+local function getConditionEffects(interaction)
+    return getField(interaction, "conditions") or {}
+end
+
+local function getActionEffects(interaction)
+    return getField(interaction, "actions") or {}
+end
+
+local function evaluateInteraction(definition, interaction, triggerId, payload, context)
     local triggerSpec = getField(interaction, "trigger")
     if getTriggerId(triggerSpec) ~= triggerId then
         return {
             definition = definition,
             interaction = interaction,
             matched = false,
-            actionsRun = 0
+            effectsRun = 0
         }
     end
 
-    for _, condition in ipairs(getField(interaction, "conditions") or {}) do
-        if not Runtime.evaluateCondition(condition, context, payload) then
+    for _, effect in ipairs(getConditionEffects(interaction)) do
+        if not Runtime.evaluateEffect(effect, context, payload, "condition") then
             return {
                 definition = definition,
                 interaction = interaction,
                 matched = false,
-                actionsRun = 0
+                effectsRun = 0
             }
         end
     end
 
-    local actionsRun = 0
-    for _, action in ipairs(getField(interaction, "actions") or {}) do
-        local ok = Runtime.runAction(action, context, payload)
+    local effectsRun = 0
+    for _, effect in ipairs(getActionEffects(interaction)) do
+        local ok = Runtime.runEffect(effect, context, payload, "action")
         if not ok then
             return {
                 definition = definition,
                 interaction = interaction,
                 matched = true,
                 aborted = true,
-                actionsRun = actionsRun
+                effectsRun = effectsRun
             }
         end
-        actionsRun = actionsRun + 1
+        effectsRun = effectsRun + 1
     end
 
     return {
@@ -125,7 +121,7 @@ local function evaluateInteraction(definition, interaction, label, triggerId, pa
         interaction = interaction,
         matched = true,
         aborted = false,
-        actionsRun = actionsRun
+        effectsRun = effectsRun
     }
 end
 
@@ -142,7 +138,7 @@ function Runtime.fireDefinitions(definitions, triggerId, context, payload)
         definitionsChecked = 0,
         interactionsChecked = 0,
         matchedDefinitions = 0,
-        actionCount = 0,
+        effectCount = 0,
         results = {}
     }
 
@@ -153,7 +149,6 @@ function Runtime.fireDefinitions(definitions, triggerId, context, payload)
             local result = evaluateInteraction(
                 definition,
                 interaction,
-                "definition #" .. tostring(summary.definitionsChecked) .. " / interaction #" .. tostring(interactionIndex),
                 triggerId,
                 effectivePayload,
                 effectiveContext
@@ -161,7 +156,7 @@ function Runtime.fireDefinitions(definitions, triggerId, context, payload)
             table.insert(summary.results, result)
             if result.matched then
                 summary.matchedDefinitions = summary.matchedDefinitions + 1
-                summary.actionCount = summary.actionCount + (result.actionsRun or 0)
+                summary.effectCount = summary.effectCount + (result.effectsRun or 0)
                 return summary
             end
         end
@@ -177,19 +172,14 @@ end
 function Runtime.registerTriggerType(id, handler)
     Bootstrap.ensureInitialized()
     Log.warn(
-        "registerTriggerType('" .. tostring(id) .. "') is deprecated; use event ids in interactions and condition handlers for matching logic."
+        "registerTriggerType('" .. tostring(id) .. "') is deprecated; use event ids in interactions and effect handlers for matching logic."
     )
     return nil, handler
 end
 
-function Runtime.registerConditionType(id, handler)
+function Runtime.registerEffectType(id, handler)
     Bootstrap.ensureInitialized()
-    Handlers.registerConditionType(id, handler)
-end
-
-function Runtime.registerActionType(id, handler)
-    Bootstrap.ensureInitialized()
-    Handlers.registerActionType(id, handler)
+    Handlers.registerEffectType(id, handler)
 end
 
 function Runtime.clearDefinitionCache()

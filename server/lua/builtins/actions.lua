@@ -25,8 +25,8 @@ local function resolveValue(value, context, payload, Handlers)
         return value
     end
 
-    local actionType = value.type
-    local handler = type(actionType) == "string" and Handlers.getActionType(actionType) or nil
+    local effectType = value.type
+    local handler = type(effectType) == "string" and Handlers.getEffectType(effectType) or nil
     if handler ~= nil then
         return handler(value, context, payload)
     end
@@ -78,7 +78,7 @@ end
 function Actions.register(Handlers)
     ParserRegistry.registerPositionalArguments("consequence:pick", { "...options" })
 
-    Handlers.registerActionType("consequence:call_context", function(spec, context, payload)
+    Handlers.registerEffectType("consequence:call_context", function(spec, context, payload)
         return callMethod(
             Utils.getPath(context, spec.path),
             spec.method,
@@ -86,7 +86,7 @@ function Actions.register(Handlers)
         )
     end)
 
-    Handlers.registerActionType("consequence:call_payload", function(spec, context, payload)
+    Handlers.registerEffectType("consequence:call_payload", function(spec, context, payload)
         return callMethod(
             Utils.getPath(payload, spec.path),
             spec.method,
@@ -94,7 +94,7 @@ function Actions.register(Handlers)
         )
     end)
 
-    Handlers.registerActionType("consequence:pick", function(spec)
+    Handlers.registerEffectType("consequence:pick", function(spec)
         local options = spec.options or {}
         if #options == 0 then
             return nil
@@ -105,8 +105,8 @@ function Actions.register(Handlers)
         return options[math.random(#options)]
     end)
 
-    Handlers.registerActionType("consequence:script", function(spec, context, payload)
-        local fn = ModuleLoader.resolveFunction(spec, "run")
+    Handlers.registerEffectType("consequence:script", function(spec, context, payload)
+        local fn = ModuleLoader.resolveEffectFunction(spec)
         return fn(spec, context, payload)
     end)
 end

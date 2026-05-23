@@ -190,28 +190,18 @@ function Parser:lowerCall(node)
     return spec
 end
 
-function Parser:lowerCondition(node)
-    if node.kind == "symbol" then
-        return {
-            type = Registry.normalizeSymbolParts(node.namespace, node.name)
-        }
-    end
-    if node.kind == "call" then
-        return self:lowerCall(node)
-    end
-
-    self:failAt(node.token, "Conditions must be symbols or calls.")
-end
-
-function Parser:lowerAction(node)
+function Parser:lowerEffect(node, options)
+    local allowStringLiteral = options ~= nil and options.allowStringLiteral == true
     if node.kind == "literal" then
-        if type(node.value) ~= "string" then
-            self:failAt(node.token, "Top-level action literals must be strings.")
+        if allowStringLiteral and type(node.value) == "string" then
+            return {
+                type = "consequence:text",
+                text = node.value
+            }
         end
-        return {
-            type = "consequence:text",
-            text = node.value
-        }
+
+        local expectedKinds = allowStringLiteral and "string literals, symbols, or calls" or "symbols or calls"
+        self:failAt(node.token, "Effects in this position must be " .. expectedKinds .. ".")
     end
     if node.kind == "symbol" then
         return {
@@ -222,7 +212,7 @@ function Parser:lowerAction(node)
         return self:lowerCall(node)
     end
 
-    self:failAt(node.token, "Actions must be literals, symbols, or calls.")
+    self:failAt(node.token, "Effects must be symbols or calls.")
 end
 
 function Parser:parseInteraction()
@@ -231,15 +221,15 @@ function Parser:parseInteraction()
         self:failAt(self:current(), "Expected '->' after interaction trigger.")
     end
 
-    local actions = {}
-    table.insert(actions, self:lowerAction(self:parseExpression()))
+    local actionEffects = {}
+    table.insert(actionEffects, self:lowerEffect(self:parseExpression(), { allowStringLiteral = true }))
     while self:match("comma") do
-        table.insert(actions, self:lowerAction(self:parseExpression()))
+        table.insert(actionEffects, self:lowerEffect(self:parseExpression(), { allowStringLiteral = true }))
     end
 
     local interaction = {
         conditions = {},
-        actions = actions
+        actions = actionEffects
     }
 
     if lhs.kind == "symbol" then
@@ -249,8 +239,8 @@ function Parser:parseInteraction()
 
     if lhs.kind == "call" then
         interaction.trigger = Registry.normalizeSymbolParts(lhs.callee.namespace, lhs.callee.name)
-        for _, condition in ipairs(lhs.args) do
-            table.insert(interaction.conditions, self:lowerCondition(condition))
+        for _, effect in ipairs(lhs.args) do
+            table.insert(interaction.conditions, self:lowerEffect(effect))
         end
         return interaction
     end

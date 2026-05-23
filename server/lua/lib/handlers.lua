@@ -1,6 +1,5 @@
 local Handlers = {
-    ConditionTypes = {},
-    ActionTypes = {}
+    EffectTypes = {}
 }
 
 local function validateId(id)
@@ -28,20 +27,12 @@ local function get(map, id)
     return map[id]
 end
 
-function Handlers.registerConditionType(id, handler)
-    register(Handlers.ConditionTypes, id, handler)
+function Handlers.registerEffectType(id, handler)
+    register(Handlers.EffectTypes, id, handler)
 end
 
-function Handlers.registerActionType(id, handler)
-    register(Handlers.ActionTypes, id, handler)
-end
-
-function Handlers.getConditionType(id)
-    return get(Handlers.ConditionTypes, id)
-end
-
-function Handlers.getActionType(id)
-    return get(Handlers.ActionTypes, id)
+function Handlers.getEffectType(id)
+    return get(Handlers.EffectTypes, id)
 end
 
 return Handlers

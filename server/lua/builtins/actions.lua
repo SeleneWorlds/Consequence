@@ -42,6 +42,20 @@ local function resolveValue(value, context, payload, Handlers, options)
     return resolved
 end
 
+local function evaluateCondition(value, context, payload, Handlers, options)
+    if type(value) ~= "table" then
+        return value ~= nil and value ~= false
+    end
+
+    local effectType = value.type
+    local handler = type(effectType) == "string" and Handlers.getEffectType(effectType, options and options.defaultNamespaces) or nil
+    if handler == nil then
+        return value ~= nil
+    end
+
+    return handler(value, context, payload, "condition", options) == true
+end
+
 local function resolveArgs(spec, context, payload, Handlers, options)
     if type(spec.args) == "table" then
         return resolveValue(spec.args, context, payload, Handlers, options)
@@ -77,6 +91,7 @@ end
 
 function Actions.register(Handlers)
     ParserRegistry.registerPositionalArguments("consequence:pick", { "...options" })
+    ParserRegistry.registerPositionalArguments("consequence:if", { "condition", "trueEffect", "falseEffect" })
 
     Handlers.registerEffectType("consequence:call_context", function(spec, context, payload, _, options)
         return callMethod(
@@ -103,6 +118,13 @@ function Actions.register(Handlers)
             return options[1]
         end
         return options[math.random(#options)]
+    end)
+
+    Handlers.registerEffectType("consequence:if", function(spec, context, payload, _, options)
+        if evaluateCondition(spec.condition, context, payload, Handlers, options) then
+            return resolveValue(spec.trueEffect, context, payload, Handlers, options)
+        end
+        return resolveValue(spec.falseEffect, context, payload, Handlers, options)
     end)
 
     Handlers.registerEffectType("consequence:script", function(spec, context, payload)

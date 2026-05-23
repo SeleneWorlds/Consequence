@@ -186,6 +186,40 @@ local function testParsesBuiltInPickVarargs()
     }, "Built-in pick action should lower varargs into options.")
 end
 
+local function testParsesBuiltInIfTernary()
+    local result = parseSuccess(
+        [[greet(flag) -> reply(if(check("ok"), "yes", pick("no", "maybe")))]],
+        function(api)
+            api.registerPositionalArguments("reply", { "text" })
+            api.registerPositionalArguments("check", { "value" })
+        end
+    )
+
+    assertDeepEquals(result.interactions[1], {
+        trigger = "greet",
+        conditions = {
+            { type = "flag" }
+        },
+        actions = {
+            {
+                type = "reply",
+                text = {
+                    type = "if",
+                    condition = {
+                        type = "check",
+                        value = "ok"
+                    },
+                    trueEffect = "yes",
+                    falseEffect = {
+                        type = "pick",
+                        options = { "no", "maybe" }
+                    }
+                }
+            }
+        }
+    }, "Built-in if action should lower three positional arguments into a ternary effect.")
+end
+
 local function testSupportsNamespacesDefaultsAndNestedCalls()
     local result = parseSuccess(
         [[foo:bar(localFlag, check(i18n("de", "en"))) -> "Hi", baz:qux(showTrades("ore"))]],
@@ -362,6 +396,71 @@ local function testBuiltInPickActionEvaluation()
     assertTrue(result == "two", "Built-in pick action should return the randomly selected option.")
 end
 
+local function testBuiltInIfActionEvaluation()
+    local context
+    context = {
+        npc = {
+            speak = function(_, message)
+                context.captured = message
+            end
+        }
+    }
+
+    local ok = Consequence.runEffect({
+        type = "consequence:call_context",
+        path = "npc",
+        method = "speak",
+        args = {
+            {
+                type = "consequence:if",
+                condition = {
+                    type = "consequence:match",
+                    patterns = { "^hello" }
+                },
+                trueEffect = "matched",
+                falseEffect = "missed"
+            }
+        }
+    }, context, {
+        message = "hello world"
+    })
+
+    assertTrue(ok, "Built-in if action should execute successfully.")
+    assertTrue(context.captured == "matched", "Built-in if action should resolve the true branch.")
+end
+
+local function testBuiltInIfConditionEvaluation()
+    assertTrue(
+        Consequence.evaluateEffect({
+            type = "consequence:if",
+            condition = {
+                type = "consequence:match",
+                patterns = { "^hello" }
+            },
+            trueEffect = true,
+            falseEffect = false
+        }, nil, {
+            message = "hello world"
+        }),
+        "Built-in if effect should return the true branch when its condition passes."
+    )
+
+    assertTrue(
+        not Consequence.evaluateEffect({
+            type = "consequence:if",
+            condition = {
+                type = "consequence:match",
+                patterns = { "^goodbye" }
+            },
+            trueEffect = true,
+            falseEffect = false
+        }, nil, {
+            message = "hello world"
+        }),
+        "Built-in if effect should return the false branch when its condition fails."
+    )
+end
+
 local function testNestedPickActionResolvesInsideArgs()
     local originalRandom = math.random
     math.random = function(limit)
@@ -511,6 +610,7 @@ function M.run()
     testParsesSimpleInteraction()
     testParsesBuiltInMatchVarargs()
     testParsesBuiltInPickVarargs()
+    testParsesBuiltInIfTernary()
     testSupportsNamespacesDefaultsAndNestedCalls()
     testAcceptsBareAndQualifiedRegistrations()
     testSupportsMultilineAndTrailingCommas()
@@ -522,6 +622,8 @@ function M.run()
     testClearParserRegistrationsResetsState()
     testBuiltInMatchConditionEvaluation()
     testBuiltInPickActionEvaluation()
+    testBuiltInIfActionEvaluation()
+    testBuiltInIfConditionEvaluation()
     testNestedPickActionResolvesInsideArgs()
     testResolvesBareEffectsAgainstConfiguredDefaultNamespaces()
     testPrefersExactBareRegistrationOverDefaultNamespaceFallback()

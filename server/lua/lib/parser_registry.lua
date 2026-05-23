@@ -16,6 +16,25 @@ local function validateIdentifier(value, label)
     end
 end
 
+local function parsePositionalArgumentName(value, index, total)
+    if type(value) ~= "string" then
+        fail("Positional argument name must be a valid identifier.")
+    end
+
+    local isVararg = value:sub(1, 3) == "..."
+    local name = isVararg and value:sub(4) or value
+    validateIdentifier(name, "Positional argument name")
+
+    if isVararg and index ~= total then
+        fail("Vararg positional argument name must be the last entry.")
+    end
+
+    return {
+        name = name,
+        vararg = isVararg
+    }
+end
+
 function Registry.normalizeSymbolParts(namespace, name)
     validateIdentifier(name, "Symbol name")
     if namespace == nil or namespace == "" then
@@ -56,12 +75,12 @@ local function copyNames(names)
     local copied = {}
     local seen = {}
     for index, value in ipairs(names) do
-        validateIdentifier(value, "Positional argument name")
-        if seen[value] then
-            fail("Duplicate positional argument name '" .. value .. "'.")
+        local entry = parsePositionalArgumentName(value, index, #names)
+        if seen[entry.name] then
+            fail("Duplicate positional argument name '" .. entry.name .. "'.")
         end
-        copied[index] = value
-        seen[value] = true
+        copied[index] = entry
+        seen[entry.name] = true
     end
 
     for key, _ in pairs(names) do
@@ -86,7 +105,10 @@ function Registry.getPositionalArguments(symbol)
 
     local copied = {}
     for index, value in ipairs(names) do
-        copied[index] = value
+        copied[index] = {
+            name = value.name,
+            vararg = value.vararg
+        }
     end
     return copied
 end

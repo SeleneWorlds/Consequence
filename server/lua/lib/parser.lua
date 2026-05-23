@@ -147,29 +147,46 @@ function Parser:lowerCall(node)
     local symbolId = Registry.normalizeSymbolParts(node.callee.namespace, node.callee.name)
     local args = node.args or {}
     local positionalNames = Registry.getPositionalArguments(symbolId)
+    local positionalCount = positionalNames ~= nil and #positionalNames or 0
+    local varargEntry = positionalCount > 0 and positionalNames[positionalCount] or nil
+    local hasVararg = varargEntry ~= nil and varargEntry.vararg == true
+    local fixedArgumentCount = hasVararg and (positionalCount - 1) or positionalCount
 
     if #args > 0 and positionalNames == nil then
         self:failAt(node.callee.token, "No positional argument registration for " .. formatValue(symbolId) .. ".")
     end
 
-    if positionalNames ~= nil and #args > #positionalNames then
+    if positionalNames ~= nil and not hasVararg and #args > positionalCount then
         self:failAt(
             node.callee.token,
             "Too many positional arguments for " .. formatValue(symbolId) .. ": expected at most "
-                .. tostring(#positionalNames) .. ", got " .. tostring(#args) .. "."
+                .. tostring(positionalCount) .. ", got " .. tostring(#args) .. "."
         )
     end
 
     local spec = {
         type = symbolId
     }
-    for index, arg in ipairs(args) do
-        local fieldName = positionalNames[index]
-        if fieldName == nil then
-            self:failAt(node.callee.token, "Missing positional argument mapping for " .. formatValue(symbolId) .. ".")
-        end
-        spec[fieldName] = self:lowerValue(arg)
+    for index = 1, math.min(#args, fixedArgumentCount) do
+        local fieldName = positionalNames[index].name
+        spec[fieldName] = self:lowerValue(args[index])
     end
+
+    if hasVararg then
+        local values = {}
+        for index = fixedArgumentCount + 1, #args do
+            values[#values + 1] = self:lowerValue(args[index])
+        end
+        spec[varargEntry.name] = values
+    else
+        for index = fixedArgumentCount + 1, #args do
+            if positionalNames[index] == nil then
+                self:failAt(node.callee.token, "Missing positional argument mapping for " .. formatValue(symbolId) .. ".")
+            end
+            spec[positionalNames[index].name] = self:lowerValue(args[index])
+        end
+    end
+
     return spec
 end
 

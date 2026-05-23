@@ -229,6 +229,32 @@ trigger(
     }, "Multiline calls and trailing commas should parse.")
 end
 
+local function testSupportsVarargPositionalArguments()
+    local result = parseSuccess(
+        [[greet(flag) -> reply("hello", "there", otherAction)]],
+        function(api)
+            api.registerPositionalArguments("reply", { "text", "...extras" })
+        end
+    )
+
+    assertDeepEquals(result.interactions[1], {
+        trigger = "consequence:greet",
+        conditions = {
+            { type = "consequence:flag" }
+        },
+        actions = {
+            {
+                type = "consequence:reply",
+                text = "hello",
+                extras = {
+                    "there",
+                    { type = "consequence:otherAction" }
+                }
+            }
+        }
+    }, "Vararg positional arguments should collect remaining lowered values.")
+end
+
 local function testFailsOnMissingPositionalRegistration()
     local errorMessage = parseFailure([[greet(match("hello")) -> wave]])
     assertTrue(errorMessage:find("broken.csqn:1:7:", 1, true) ~= nil, errorMessage)
@@ -282,6 +308,19 @@ local function testFailsOnSyntaxDiagnostics()
     )
 end
 
+local function testFailsOnNonTrailingVarargRegistration()
+    local ok, err = pcall(function()
+        Consequence.clearParserRegistrations()
+        Consequence.registerPositionalArguments("reply", { "...texts", "suffix" })
+    end)
+    assertTrue(not ok, "Expected registration failure.")
+    local errorMessage = tostring(err)
+    assertTrue(
+        errorMessage:find("Vararg positional argument name must be the last entry", 1, true) ~= nil,
+        errorMessage
+    )
+end
+
 local function testClearParserRegistrationsResetsState()
     local withRegistration = parseSuccess(
         [[greet -> reply("hello")]],
@@ -313,9 +352,11 @@ function M.run()
     testSupportsNamespacesDefaultsAndNestedCalls()
     testAcceptsBareAndQualifiedRegistrations()
     testSupportsMultilineAndTrailingCommas()
+    testSupportsVarargPositionalArguments()
     testFailsOnMissingPositionalRegistration()
     testFailsOnTooManyPositionalArguments()
     testFailsOnSyntaxDiagnostics()
+    testFailsOnNonTrailingVarargRegistration()
     testClearParserRegistrationsResetsState()
 end
 

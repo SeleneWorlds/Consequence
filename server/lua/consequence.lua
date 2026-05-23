@@ -8,6 +8,10 @@ local Runtime = require("consequence.server.lua.lib.runtime")
 
 Runtime.registerPositionalArguments = ParserRegistry.registerPositionalArguments
 Runtime.parseScript = Parser.parseScript
-Runtime.clearParserRegistrations = ParserRegistry.clear
+Runtime.clearParserRegistrations = function()
+    ParserRegistry.clear()
+    Bootstrap.Initialized = false
+    Bootstrap.ensureInitialized()
+end
 
 return Runtime

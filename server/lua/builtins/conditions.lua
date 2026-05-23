@@ -1,4 +1,5 @@
 local ModuleLoader = require("consequence.server.lua.lib.module_loader")
+local ParserRegistry = require("consequence.server.lua.lib.parser_registry")
 local Utils = require("consequence.server.lua.lib.utils")
 
 local Conditions = {}
@@ -46,6 +47,8 @@ local function matchField(spec, root, context, payload, defaultPath)
 end
 
 function Conditions.register(Handlers)
+    ParserRegistry.registerPositionalArguments("consequence:match", { "...patterns" })
+
     Handlers.registerConditionType("consequence:all", function(spec, context, payload)
         for _, nestedCondition in ipairs(spec.conditions or {}) do
             local handler = Handlers.getConditionType(nestedCondition.type)
@@ -83,6 +86,26 @@ function Conditions.register(Handlers)
 
     Handlers.registerConditionType("consequence:payload_field_match", function(spec, context, payload)
         return matchField(spec, payload or {}, context, payload, "message")
+    end)
+
+    Handlers.registerConditionType("consequence:match", function(spec, _, payload)
+        local actual = Utils.getPath(payload or {}, "message")
+        if type(actual) ~= "string" then
+            return false
+        end
+
+        local patterns = spec.patterns or {}
+        if #patterns == 0 then
+            return false
+        end
+
+        for _, pattern in ipairs(patterns) do
+            if type(pattern) == "string" and string.find(actual, pattern) ~= nil then
+                return true
+            end
+        end
+
+        return false
     end)
 
     Handlers.registerConditionType("consequence:script", function(spec, context, payload)

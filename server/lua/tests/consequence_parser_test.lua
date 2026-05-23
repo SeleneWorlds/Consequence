@@ -120,7 +120,6 @@ local function testParsesSimpleInteraction()
     local result = parseSuccess(
         [[greet(match("hello")) -> reply("Hello")]],
         function(api)
-            api.registerPositionalArguments("match", { "text" })
             api.registerPositionalArguments("reply", { "text" })
         end
     )
@@ -129,7 +128,28 @@ local function testParsesSimpleInteraction()
         {
             trigger = "consequence:greet",
             conditions = {
-                { type = "consequence:match", text = "hello" }
+                { type = "consequence:match", patterns = { "hello" } }
+            },
+            actions = {
+                { type = "consequence:reply", text = "Hello" }
+            }
+        }
+    }, "Simple interaction should lower to runtime-shaped tables.")
+end
+
+local function testParsesBuiltInMatchVarargs()
+    local result = parseSuccess(
+        [[greet(match("^hello", "world$")) -> reply("Hello")]],
+        function(api)
+            api.registerPositionalArguments("reply", { "text" })
+        end
+    )
+
+    assertDeepEquals(result.interactions, {
+        {
+            trigger = "consequence:greet",
+            conditions = {
+                { type = "consequence:match", patterns = { "^hello", "world$" } }
             },
             actions = {
                 { type = "consequence:reply", text = "Hello" }
@@ -211,7 +231,6 @@ trigger(
 ), otherAction
         ]],
         function(api)
-            api.registerPositionalArguments("match", { "text" })
             api.registerPositionalArguments("reply", { "text" })
         end
     )
@@ -220,7 +239,7 @@ trigger(
         trigger = "consequence:trigger",
         conditions = {
             { type = "consequence:flag" },
-            { type = "consequence:match", text = "hello" }
+            { type = "consequence:match", patterns = { "hello" } }
         },
         actions = {
             { type = "consequence:reply", text = "hi" },
@@ -256,10 +275,10 @@ local function testSupportsVarargPositionalArguments()
 end
 
 local function testFailsOnMissingPositionalRegistration()
-    local errorMessage = parseFailure([[greet(match("hello")) -> wave]])
+    local errorMessage = parseFailure([[greet(needs_registration("hello")) -> wave]])
     assertTrue(errorMessage:find("broken.csqn:1:7:", 1, true) ~= nil, errorMessage)
     assertTrue(
-        errorMessage:find("No positional argument registration for 'consequence:match'", 1, true) ~= nil,
+        errorMessage:find("No positional argument registration for 'consequence:needs_registration'", 1, true) ~= nil,
         errorMessage
     )
 end
@@ -275,6 +294,29 @@ local function testFailsOnTooManyPositionalArguments()
     assertTrue(
         errorMessage:find("Too many positional arguments for 'consequence:reply'", 1, true) ~= nil,
         errorMessage
+    )
+end
+
+local function testBuiltInMatchConditionEvaluation()
+    assertTrue(
+        Consequence.evaluateCondition({ type = "consequence:match", patterns = { "^hello", "world$" } }, nil, {
+            message = "hello world"
+        }),
+        "Built-in match condition should succeed when any pattern matches."
+    )
+
+    assertTrue(
+        not Consequence.evaluateCondition({ type = "consequence:match", patterns = { "^goodbye" } }, nil, {
+            message = "hello world"
+        }),
+        "Built-in match condition should fail when no pattern matches."
+    )
+
+    assertTrue(
+        not Consequence.evaluateCondition({ type = "consequence:match", patterns = {} }, nil, {
+            message = "hello world"
+        }),
+        "Built-in match condition should fail when no patterns are provided."
     )
 end
 
@@ -349,6 +391,7 @@ local M = {}
 
 function M.run()
     testParsesSimpleInteraction()
+    testParsesBuiltInMatchVarargs()
     testSupportsNamespacesDefaultsAndNestedCalls()
     testAcceptsBareAndQualifiedRegistrations()
     testSupportsMultilineAndTrailingCommas()
@@ -358,6 +401,7 @@ function M.run()
     testFailsOnSyntaxDiagnostics()
     testFailsOnNonTrailingVarargRegistration()
     testClearParserRegistrationsResetsState()
+    testBuiltInMatchConditionEvaluation()
 end
 
 return M

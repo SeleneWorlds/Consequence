@@ -81,10 +81,14 @@ Example:
 Conditions:
 - `consequence:all`
 - `consequence:any`
+- `consequence:match`
 - `consequence:not`
 - `consequence:context_field_match`
 - `consequence:payload_field_match`
 - `consequence:script`
+
+`consequence:match` matches `payload.message` against one or more Lua patterns.
+In consequence scripts, use it as `match("pattern1", "pattern2")`.
 
 Actions:
 - `consequence:call_context`

@@ -10,11 +10,11 @@ local DEFAULT_RUNTIME_OPTIONS = {
 }
 
 local function getField(entry, fieldName)
-    if type(entry) ~= "table" then
-        return nil
-    end
     if type(entry.getField) == "function" then
         return entry:getField(fieldName)
+    end
+    if type(entry) ~= "table" then
+        return nil
     end
     return entry[fieldName]
 end

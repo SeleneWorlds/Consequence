@@ -93,6 +93,21 @@ function Actions.register(Handlers)
     ParserRegistry.registerPositionalArguments("consequence:pick", { "...options" })
     ParserRegistry.registerPositionalArguments("consequence:if", { "condition", "trueEffect", "falseEffect" })
 
+    Handlers.registerEffectType("consequence:text", function(spec, context, payload, phase, options)
+        local text = spec.text
+        local textHandler = nil
+        if type(options) == "table" and type(options.textHandler) == "function" then
+            textHandler = options.textHandler
+        elseif type(context) == "table" and type(context.textHandler) == "function" then
+            textHandler = context.textHandler
+        end
+
+        if textHandler ~= nil then
+            return textHandler(text, spec, context, payload, phase, options)
+        end
+        return text
+    end)
+
     Handlers.registerEffectType("consequence:call_context", function(spec, context, payload, _, options)
         return callMethod(
             Utils.getPath(context, spec.path),

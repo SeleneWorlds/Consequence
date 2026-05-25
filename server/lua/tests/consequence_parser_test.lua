@@ -495,6 +495,54 @@ local function testNestedPickActionResolvesInsideArgs()
     assertTrue(captured == "Hi", "Nested pick action should resolve to the selected argument value.")
 end
 
+local function testBuiltInTextActionReturnsLiteralText()
+    local ok, result = Consequence.runEffect({ type = "consequence:text", text = "Hello" }, nil, nil)
+
+    assertTrue(ok, "Built-in text action should execute successfully.")
+    assertTrue(result == "Hello", "Built-in text action should return the literal text by default.")
+end
+
+local function testBuiltInTextActionUsesContextTextHandler()
+    local received = nil
+    local ok, result = Consequence.runEffect({
+        type = "consequence:text",
+        text = "Hello"
+    }, {
+        textHandler = function(text)
+            received = text
+            return string.upper(text)
+        end
+    }, nil)
+
+    assertTrue(ok, "Built-in text action should execute successfully with a text handler.")
+    assertTrue(received == "Hello", "Built-in text action should pass the literal text to the context text handler.")
+    assertTrue(result == "HELLO", "Built-in text action should return the text handler result when present.")
+end
+
+local function testBuiltInTextActionPrefersOptionsTextHandler()
+    local contextReceived = nil
+    local optionsReceived = nil
+    local ok, result = Consequence.runEffect({
+        type = "consequence:text",
+        text = "Hello"
+    }, {
+        textHandler = function(text)
+            contextReceived = text
+            return "context:" .. text
+        end
+    }, nil, nil, {
+        textHandler = function(text)
+            optionsReceived = text
+            return "options:" .. text
+        end
+    })
+
+    assertTrue(ok, "Built-in text action should execute successfully with an options text handler.")
+    assertTrue(contextReceived == nil, "Built-in text action should prefer the options text handler over the context handler.")
+    assertTrue(optionsReceived == "Hello", "Built-in text action should pass the literal text to the options text handler.")
+    assertTrue(result == "options:Hello", "Built-in text action should return the options text handler result when present.")
+end
+
 local function testFailsOnSyntaxDiagnostics()
     local malformedNamespace = parseFailure([[foo: -> bar]])
     assertTrue(malformedNamespace:find("broken.csqn:1:6:", 1, true) ~= nil, malformedNamespace)
@@ -625,6 +673,9 @@ function M.run()
     testBuiltInIfActionEvaluation()
     testBuiltInIfConditionEvaluation()
     testNestedPickActionResolvesInsideArgs()
+    testBuiltInTextActionReturnsLiteralText()
+    testBuiltInTextActionUsesContextTextHandler()
+    testBuiltInTextActionPrefersOptionsTextHandler()
     testResolvesBareEffectsAgainstConfiguredDefaultNamespaces()
     testPrefersExactBareRegistrationOverDefaultNamespaceFallback()
 end

@@ -9,6 +9,10 @@ local DEFAULT_RUNTIME_OPTIONS = {
     defaultNamespaces = { "consequence" }
 }
 
+local RESERVED_RUNTIME_OPTION_KEYS = {
+    defaultNamespaces = true
+}
+
 local function getField(entry, fieldName)
     if type(entry.getField) == "function" then
         return entry:getField(fieldName)
@@ -47,6 +51,12 @@ local function normalizeRuntimeOptions(options)
             error("Runtime default namespaces must contain non-empty strings.", 0)
         end
         normalized.defaultNamespaces[index] = namespace
+    end
+
+    for key, value in pairs(options) do
+        if not RESERVED_RUNTIME_OPTION_KEYS[key] then
+            normalized[key] = value
+        end
     end
 
     return normalized

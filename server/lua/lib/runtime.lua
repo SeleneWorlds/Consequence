@@ -145,18 +145,21 @@ local function evaluateInteraction(definition, interaction, triggerId, payload, 
     end
 
     local effectsRun = 0
+    local lastResult = nil
     for _, effect in ipairs(getActionEffects(interaction)) do
-        local ok = Runtime.runEffect(effect, context, payload, "action", options)
+        local ok, result = Runtime.runEffect(effect, context, payload, "action", options)
         if not ok then
             return {
                 definition = definition,
                 interaction = interaction,
                 matched = true,
                 aborted = true,
-                effectsRun = effectsRun
+                effectsRun = effectsRun,
+                result = lastResult
             }
         end
         effectsRun = effectsRun + 1
+        lastResult = result
     end
 
     return {
@@ -164,7 +167,8 @@ local function evaluateInteraction(definition, interaction, triggerId, payload, 
         interaction = interaction,
         matched = true,
         aborted = false,
-        effectsRun = effectsRun
+        effectsRun = effectsRun,
+        result = lastResult
     }
 end
 
@@ -203,12 +207,12 @@ function Runtime.fireDefinitions(definitions, triggerId, context, payload, optio
             if result.matched then
                 summary.matchedDefinitions = summary.matchedDefinitions + 1
                 summary.effectCount = summary.effectCount + (result.effectsRun or 0)
-                return summary
+                return result.result, summary
             end
         end
     end
 
-    return summary
+    return nil, summary
 end
 
 function Runtime.fireTrigger(triggerId, context, payload, options)

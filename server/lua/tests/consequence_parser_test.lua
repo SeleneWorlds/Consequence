@@ -652,6 +652,73 @@ local function testPrefersExactBareRegistrationOverDefaultNamespaceFallback()
     assertDeepEquals(captured, { "bare:hello" }, "Exact registrations should win before namespace fallback.")
 end
 
+local function testFireDefinitionsReturnsLastActionResultFirst()
+    Consequence.clearParserRegistrations()
+
+    Consequence.registerEffectType("capture", function(spec)
+        return spec.value
+    end)
+
+    local result, summary = Consequence.fireDefinitions({
+        {
+            interactions = {
+                {
+                    trigger = "greet",
+                    conditions = {},
+                    actions = {
+                        { type = "capture", value = "first" },
+                        { type = "capture", value = "second" }
+                    }
+                }
+            }
+        }
+    }, "greet")
+
+    assertTrue(result == "second", "fireDefinitions should return the last action result of the first matching interaction.")
+    assertTrue(summary.matchedDefinitions == 1, "fireDefinitions should still return the summary as a second value.")
+    assertTrue(summary.effectCount == 2, "fireDefinitions summary should still report the executed action count.")
+    assertTrue(summary.results[1].result == "second", "Interaction summary should retain the last action result.")
+end
+
+local function testFireDefinitionsReturnsNilWhenNothingMatches()
+    local result, summary = Consequence.fireDefinitions({
+        {
+            interactions = {
+                {
+                    trigger = "greet",
+                    conditions = {},
+                    actions = {
+                        { type = "consequence:text", text = "Hello" }
+                    }
+                }
+            }
+        }
+    }, "farewell")
+
+    assertTrue(result == nil, "fireDefinitions should return nil when no interaction matches.")
+    assertTrue(summary.matchedDefinitions == 0, "Summary should report no matches when nothing matches.")
+    assertTrue(summary.effectCount == 0, "Summary should report zero executed actions when nothing matches.")
+end
+
+local function testFireDefinitionsReturnsTextWithoutHandler()
+    local result, summary = Consequence.fireDefinitions({
+        {
+            interactions = {
+                {
+                    trigger = "greet",
+                    conditions = {},
+                    actions = {
+                        { type = "consequence:text", text = "Hello" }
+                    }
+                }
+            }
+        }
+    }, "greet")
+
+    assertTrue(result == "Hello", "fireDefinitions should surface the built-in text result when no text handler is configured.")
+    assertTrue(summary.results[1].result == "Hello", "Summary should retain the matched interaction result.")
+end
+
 local M = {}
 
 function M.run()
@@ -678,6 +745,9 @@ function M.run()
     testBuiltInTextActionPrefersOptionsTextHandler()
     testResolvesBareEffectsAgainstConfiguredDefaultNamespaces()
     testPrefersExactBareRegistrationOverDefaultNamespaceFallback()
+    testFireDefinitionsReturnsLastActionResultFirst()
+    testFireDefinitionsReturnsNilWhenNothingMatches()
+    testFireDefinitionsReturnsTextWithoutHandler()
 end
 
 return M

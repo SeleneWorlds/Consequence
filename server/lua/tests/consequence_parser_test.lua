@@ -121,7 +121,7 @@ end
 
 local function testParsesSimpleInteraction()
     local result = parseSuccess(
-        [[greet(match("hello")) -> reply("Hello")]],
+        [[greet: match("hello") -> reply("Hello")]],
         function(api)
             api.registerPositionalArguments("reply", { "text" })
         end
@@ -142,7 +142,7 @@ end
 
 local function testParsesBuiltInMatchVarargs()
     local result = parseSuccess(
-        [[greet(match("^hello", "world$")) -> reply("Hello")]],
+        [[greet: match("^hello", "world$") -> reply("Hello")]],
         function(api)
             api.registerPositionalArguments("reply", { "text" })
         end
@@ -163,7 +163,7 @@ end
 
 local function testParsesBuiltInPickVarargs()
     local result = parseSuccess(
-        [[greet -> reply(pick("Hello", "Hi"))]],
+        [[greet: reply(pick("Hello", "Hi"))]],
         function(api)
             api.registerPositionalArguments("reply", { "text" })
         end
@@ -188,7 +188,7 @@ end
 
 local function testParsesBuiltInIfTernary()
     local result = parseSuccess(
-        [[greet(flag) -> reply(if(check("ok"), "yes", pick("no", "maybe")))]],
+        [[greet: flag -> reply(if(check("ok"), "yes", pick("no", "maybe")))]],
         function(api)
             api.registerPositionalArguments("reply", { "text" })
             api.registerPositionalArguments("check", { "value" })
@@ -222,7 +222,7 @@ end
 
 local function testSupportsNamespacesDefaultsAndNestedCalls()
     local result = parseSuccess(
-        [[foo:bar(localFlag, check(i18n("de", "en"))) -> "Hi", baz:qux(showTrades("ore"))]],
+        [[foo:bar: localFlag, check(i18n("de", "en")) -> "Hi", baz:qux(showTrades("ore"))]],
         function(api)
             api.registerPositionalArguments("check", { "condition" })
             api.registerPositionalArguments("i18n", { "german", "english" })
@@ -259,7 +259,7 @@ end
 
 local function testAcceptsBareAndQualifiedRegistrations()
     local result = parseSuccess(
-        [[useNpc(german) -> i18n("Hallo", "Hello")]],
+        [[useNpc: german -> i18n("Hallo", "Hello")]],
         function(api)
             api.registerPositionalArguments("consequence:i18n", { "german", "english" })
         end
@@ -283,12 +283,11 @@ end
 local function testSupportsMultilineAndTrailingCommas()
     local result = parseSuccess(
         [[
-trigger(
+trigger:
   flag,
   match(
     "hello",
-  ),
-) -> reply(
+  ) -> reply(
   "hi",
 ), otherAction
         ]],
@@ -312,7 +311,7 @@ end
 
 local function testSupportsVarargPositionalArguments()
     local result = parseSuccess(
-        [[greet(flag) -> reply("hello", "there", otherAction)]],
+        [[greet: flag -> reply("hello", "there", otherAction)]],
         function(api)
             api.registerPositionalArguments("reply", { "text", "...extras" })
         end
@@ -337,8 +336,8 @@ local function testSupportsVarargPositionalArguments()
 end
 
 local function testFailsOnMissingPositionalRegistration()
-    local errorMessage = parseFailure([[greet(needs_registration("hello")) -> wave]])
-    assertTrue(errorMessage:find("broken.csqn:1:7:", 1, true) ~= nil, errorMessage)
+    local errorMessage = parseFailure([[greet: needs_registration("hello") -> wave]])
+    assertTrue(errorMessage:find("broken.csqn:1:8:", 1, true) ~= nil, errorMessage)
     assertTrue(
         errorMessage:find("No positional argument registration for 'needs_registration'", 1, true) ~= nil,
         errorMessage
@@ -347,12 +346,12 @@ end
 
 local function testFailsOnTooManyPositionalArguments()
     local errorMessage = parseFailure(
-        [[greet -> reply("one", "two")]],
+        [[greet: reply("one", "two")]],
         function(api)
             api.registerPositionalArguments("reply", { "text" })
         end
     )
-    assertTrue(errorMessage:find("broken.csqn:1:10:", 1, true) ~= nil, errorMessage)
+    assertTrue(errorMessage:find("broken.csqn:1:8:", 1, true) ~= nil, errorMessage)
     assertTrue(
         errorMessage:find("Too many positional arguments for 'reply'", 1, true) ~= nil,
         errorMessage
@@ -544,32 +543,32 @@ local function testBuiltInTextActionPrefersOptionsTextHandler()
 end
 
 local function testFailsOnSyntaxDiagnostics()
-    local malformedNamespace = parseFailure([[foo: -> bar]])
-    assertTrue(malformedNamespace:find("broken.csqn:1:6:", 1, true) ~= nil, malformedNamespace)
+    local missingConditionSeparator = parseFailure([[foo -> bar]])
+    assertTrue(missingConditionSeparator:find("broken.csqn:1:5:", 1, true) ~= nil, missingConditionSeparator)
     assertTrue(
-        malformedNamespace:find("Expected symbol name after ':'", 1, true) ~= nil,
-        malformedNamespace
+        missingConditionSeparator:find("Expected ':' after interaction trigger", 1, true) ~= nil,
+        missingConditionSeparator
     )
 
-    local unterminatedString = parseFailure([[greet -> "hello]])
-    assertTrue(unterminatedString:find("broken.csqn:1:10:", 1, true) ~= nil, unterminatedString)
+    local unterminatedString = parseFailure([[greet: "hello]])
+    assertTrue(unterminatedString:find("broken.csqn:1:8:", 1, true) ~= nil, unterminatedString)
     assertTrue(
         unterminatedString:find("Unterminated string literal", 1, true) ~= nil,
         unterminatedString
     )
 
-    local unmatchedParen = parseFailure([[greet(match("hello") -> wave]])
+    local unmatchedParen = parseFailure([[greet: match("hello" -> wave]])
     assertTrue(unmatchedParen:find("broken.csqn:1:22:", 1, true) ~= nil, unmatchedParen)
     assertTrue(
         unmatchedParen:find("Expected ')' to close call", 1, true) ~= nil,
         unmatchedParen
     )
 
-    local missingArrow = parseFailure([[greet(match("hello"))]])
-    assertTrue(missingArrow:find("broken.csqn:1:22:", 1, true) ~= nil, missingArrow)
+    local emptyConditions = parseFailure([[greet: -> wave]])
+    assertTrue(emptyConditions:find("broken.csqn:1:8:", 1, true) ~= nil, emptyConditions)
     assertTrue(
-        missingArrow:find("Expected '->' after interaction trigger", 1, true) ~= nil,
-        missingArrow
+        emptyConditions:find("Expected expression", 1, true) ~= nil,
+        emptyConditions
     )
 end
 
@@ -588,7 +587,7 @@ end
 
 local function testClearParserRegistrationsResetsState()
     local withRegistration = parseSuccess(
-        [[greet -> reply("hello")]],
+        [[greet: reply("hello")]],
         function(api)
             api.registerPositionalArguments("reply", { "text" })
         end
@@ -603,7 +602,7 @@ local function testClearParserRegistrationsResetsState()
         }
     })
 
-    local errorMessage = parseFailure([[greet -> reply("hello")]])
+    local errorMessage = parseFailure([[greet: reply("hello")]])
     assertTrue(
         errorMessage:find("No positional argument registration for 'reply'", 1, true) ~= nil,
         errorMessage

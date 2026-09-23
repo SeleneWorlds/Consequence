@@ -40,6 +40,19 @@ that interaction should handle the payload, and `actions` are effects that run a
 Runtime stops after the first
 successful interaction for a payload.
 
+Consequence scripts express the same three parts explicitly:
+
+```text
+trigger: condition1, condition2 -> action1, action2
+trigger: action1, action2
+```
+
+For example, `chat: match("hello") -> "Hello!"` reacts to the `chat`
+trigger when its condition matches. Omit both the conditions and arrow when an
+interaction should always run: `cycle: pick("Hello", "Hi")`. Qualified
+triggers use a second colon as the separator, as in
+`my_bundle:chat: match("hello") -> reply("Hello!")`.
+
 Example:
 
 ```json

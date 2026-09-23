@@ -217,36 +217,52 @@ function Parser:lowerEffect(node, options)
 end
 
 function Parser:parseInteraction()
-    local lhs = self:parseExpression()
-    if not self:match("arrow") then
-        self:failAt(self:current(), "Expected '->' after interaction trigger.")
+    local first = self:expect("identifier", "Expected interaction trigger.")
+    local triggerNamespace = nil
+    local triggerName = first.value
+    self:expect("colon", "Expected ':' after interaction trigger.")
+
+    -- A qualified trigger has two colons: namespace:name: actions, or
+    -- namespace:name: conditions -> actions.
+    -- Only consume the next identifier as the trigger name when another colon
+    -- follows it; otherwise it is the first condition.
+    if self:current().kind == "identifier"
+        and self.tokens[self.index + 1] ~= nil
+        and self.tokens[self.index + 1].kind == "colon" then
+        triggerNamespace = triggerName
+        triggerName = self:advance().value
+        self:advance()
     end
 
-    local actionEffects = {}
-    table.insert(actionEffects, self:lowerEffect(self:parseExpression(), { allowStringLiteral = true }))
+    local leftNodes = {}
+    table.insert(leftNodes, self:parseExpression())
     while self:match("comma") do
+        table.insert(leftNodes, self:parseExpression())
+    end
+
+    local conditionEffects = {}
+    local actionEffects = {}
+    if self:match("arrow") then
+        for _, condition in ipairs(leftNodes) do
+            table.insert(conditionEffects, self:lowerEffect(condition))
+        end
+
         table.insert(actionEffects, self:lowerEffect(self:parseExpression(), { allowStringLiteral = true }))
+        while self:match("comma") do
+            table.insert(actionEffects, self:lowerEffect(self:parseExpression(), { allowStringLiteral = true }))
+        end
+    else
+        for _, action in ipairs(leftNodes) do
+            table.insert(actionEffects, self:lowerEffect(action, { allowStringLiteral = true }))
+        end
     end
 
     local interaction = {
-        conditions = {},
+        trigger = Registry.normalizeSymbolParts(triggerNamespace, triggerName),
+        conditions = conditionEffects,
         actions = actionEffects
     }
-
-    if lhs.kind == "symbol" then
-        interaction.trigger = Registry.normalizeSymbolParts(lhs.namespace, lhs.name)
-        return interaction
-    end
-
-    if lhs.kind == "call" then
-        interaction.trigger = Registry.normalizeSymbolParts(lhs.callee.namespace, lhs.callee.name)
-        for _, effect in ipairs(lhs.args) do
-            table.insert(interaction.conditions, self:lowerEffect(effect))
-        end
-        return interaction
-    end
-
-    self:failAt(lhs.token, "Interaction trigger must be a symbol or call.")
+    return interaction
 end
 
 function Parser:parseFile()

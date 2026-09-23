@@ -684,6 +684,11 @@ local function testFireDefinitionsReturnsLastActionResultFirst()
     assertTrue(result == "second", "fireDefinitions should return the last action result of the first matching interaction.")
     assertTrue(summary.matchedDefinitions == 1, "fireDefinitions should still return the summary as a second value.")
     assertTrue(summary.effectCount == 2, "fireDefinitions summary should still report the executed action count.")
+    assertDeepEquals(
+        summary.results[1].actionResults,
+        { "first", "second" },
+        "Interaction summary should retain every non-nil action result in execution order."
+    )
     assertTrue(summary.results[1].result == "second", "Interaction summary should retain the last action result.")
 end
 
@@ -726,6 +731,38 @@ local function testFireDefinitionsReturnsTextWithoutHandler()
     assertTrue(summary.results[1].result == "Hello", "Summary should retain the matched interaction result.")
 end
 
+local function testFireDefinitionsRetainsTextBeforeLaterActionResult()
+    Consequence.registerEffectType("succeeds", function()
+        return true
+    end)
+
+    local result, summary = Consequence.fireDefinitions({
+        {
+            interactions = {
+                {
+                    trigger = "greet",
+                    conditions = {},
+                    actions = {
+                        { type = "consequence:text", text = "Hello" },
+                        { type = "succeeds" }
+                    }
+                }
+            }
+        }
+    }, "greet", nil, nil, {
+        textHandler = function(text)
+            return text
+        end
+    })
+
+    assertTrue(result == true, "fireDefinitions should preserve its last-result behavior.")
+    assertDeepEquals(
+        summary.results[1].actionResults,
+        { "Hello", true },
+        "Interaction summary should retain text even when a later action returns another value."
+    )
+end
+
 local M = {}
 
 function M.run()
@@ -755,6 +792,7 @@ function M.run()
     testFireDefinitionsReturnsLastActionResultFirst()
     testFireDefinitionsReturnsNilWhenNothingMatches()
     testFireDefinitionsReturnsTextWithoutHandler()
+    testFireDefinitionsRetainsTextBeforeLaterActionResult()
 end
 
 return M

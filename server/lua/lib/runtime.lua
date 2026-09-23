@@ -129,7 +129,8 @@ local function evaluateInteraction(definition, interaction, triggerId, payload, 
             definition = definition,
             interaction = interaction,
             matched = false,
-            effectsRun = 0
+            effectsRun = 0,
+            actionResults = {}
         }
     end
 
@@ -139,13 +140,15 @@ local function evaluateInteraction(definition, interaction, triggerId, payload, 
                 definition = definition,
                 interaction = interaction,
                 matched = false,
-                effectsRun = 0
+                effectsRun = 0,
+                actionResults = {}
             }
         end
     end
 
     local effectsRun = 0
     local lastResult = nil
+    local actionResults = {}
     for _, effect in ipairs(getActionEffects(interaction)) do
         local ok, result = Runtime.runEffect(effect, context, payload, "action", options)
         if not ok then
@@ -155,10 +158,14 @@ local function evaluateInteraction(definition, interaction, triggerId, payload, 
                 matched = true,
                 aborted = true,
                 effectsRun = effectsRun,
+                actionResults = actionResults,
                 result = lastResult
             }
         end
         effectsRun = effectsRun + 1
+        if result ~= nil then
+            actionResults[#actionResults + 1] = result
+        end
         lastResult = result
     end
 
@@ -168,6 +175,7 @@ local function evaluateInteraction(definition, interaction, triggerId, payload, 
         matched = true,
         aborted = false,
         effectsRun = effectsRun,
+        actionResults = actionResults,
         result = lastResult
     }
 end

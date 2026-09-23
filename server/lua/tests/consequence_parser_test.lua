@@ -379,6 +379,14 @@ local function testBuiltInMatchConditionEvaluation()
         }),
         "Built-in match condition should fail when no patterns are provided."
     )
+
+    assertTrue(
+        Consequence.evaluateEffect({ type = "consequence:match", patterns = { "^hello" } }, nil, {
+            message = "Hello World"
+        }),
+        "Built-in match condition should match letters case-insensitively."
+    )
+
 end
 
 local function testBuiltInPickActionEvaluation()

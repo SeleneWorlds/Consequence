@@ -93,6 +93,7 @@ function Conditions.register(Handlers)
         if type(actual) ~= "string" then
             return false
         end
+        actual = string.lower(actual)
 
         local patterns = spec.patterns or {}
         if #patterns == 0 then

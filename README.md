@@ -107,7 +107,8 @@ Effects commonly used in `conditions`:
 - `consequence:payload_field_match`
 - `consequence:script`
 
-`consequence:match` matches `payload.message` against one or more Lua patterns.
+`consequence:match` lowercases `payload.message` before matching it against one or more Lua patterns.
+Patterns should therefore use lowercase letters; Lua pattern operators retain their normal meaning.
 In consequence scripts, use it as `match("pattern1", "pattern2")`.
 
 Effects commonly used in `actions`:
